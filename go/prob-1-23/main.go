@@ -119,7 +119,7 @@ func main() {
 	fmt.Println(filename)
 }
 
-// "Improvied" averaging scheme, mixing cross and square scheme with 4:1 weighting.
+// "Improved" averaging scheme, mixing cross and square scheme with 4:1 weighting.
 func improvedAvg(n, ne, e, se, s, sw, w, nw float64) float64 {
 	sc := n + e + s + w
 	ss := ne + se + sw + nw
