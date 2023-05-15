@@ -71,7 +71,7 @@ var (
 func main() {
 	flag.Parse()
 	legendrezeros.SetPrecOnce(*prec)
-	filename := filepath.Join(os.TempDir(), "genleg.m")
+	filename := filepath.Join(os.TempDir(), "legendre-zeros.m")
 	f, err := os.Create(filename)
 	if err != nil {
 		panic(err)
