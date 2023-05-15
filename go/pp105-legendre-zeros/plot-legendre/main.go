@@ -56,7 +56,7 @@ func main() {
 	for _, nu := range smallNus {
 		parts = append(parts, fmt.Sprintf("'𝜈=%v'", nu))
 	}
-	fmt.Fprintf(f, strings.Join(parts, ","))
+	fmt.Fprint(f, strings.Join(parts, ","))
 
 	fmt.Fprintf(f, ",'location','southeast');")
 	fmt.Fprintln(f, "title('𝜈 ≤ 1');")
@@ -88,7 +88,7 @@ func main() {
 	for _, nu := range bigNus {
 		parts = append(parts, fmt.Sprintf("'𝜈=%v'", nu))
 	}
-	fmt.Fprintf(f, strings.Join(parts, ","))
+	fmt.Fprint(f, strings.Join(parts, ","))
 
 	fmt.Fprintf(f, ",'location','southeast');")
 	fmt.Fprintln(f, "title('𝜈 ≥ 1');")
