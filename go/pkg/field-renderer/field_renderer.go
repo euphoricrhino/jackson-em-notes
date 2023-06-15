@@ -23,7 +23,8 @@ type Options struct {
 	Gamma  float64
 	Width  int
 	Height int
-	Field  func(x, y int) float64
+	// Field function for pixel (x,y) ranging from 0 to (Width|Height)-1. Return math.NaN to indicate divergence.
+	Field func(x, y int) float64
 }
 
 // Run runs the field renderer with the given options.
@@ -76,19 +77,40 @@ func Run(opts Options) error {
 	<-counterDone
 
 	// Normalize the data.
-	max, min := data[0], data[0]
-	for i := 1; i < len(data); i++ {
-		if max < data[i] {
-			max = data[i]
-		}
-		if min > data[i] {
-			min = data[i]
+	max, min := math.NaN(), math.NaN()
+	for i := 0; i < len(data); i++ {
+		v := data[i]
+		if !math.IsNaN(v) {
+			if math.IsNaN(max) || max < v {
+				max = v
+			}
+			if math.IsNaN(min) || min > v {
+				min = v
+			}
 		}
 	}
-	spread := max - min
-	if spread >= 1e-8 {
+	if !math.IsNaN(max) {
+		// Not all pixels are NaN.
+		spread := max - min
+		if spread > 0.0 {
+			// Normalize into range [0,1].
+			for i := range data {
+				if math.IsNaN(data[i]) {
+					data[i] = 0.0
+				} else {
+					data[i] = (data[i] - min) / spread
+				}
+			}
+		} else {
+			// Corner case: ~onstant field.
+			for i := range data {
+				data[i] = 0.5
+			}
+		}
+	} else {
+		// All NaNs.
 		for i := range data {
-			data[i] = (data[i] - min) / spread
+			data[i] = 0.0
 		}
 	}
 
