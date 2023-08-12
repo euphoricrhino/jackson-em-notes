@@ -96,8 +96,8 @@ func main() {
 	}
 
 	camCircleAngle := math.Pi * .17
-	camCircleZ := fieldline.Vec3{math.Cos(camCircleAngle), 0, math.Sin(camCircleAngle)}
-	camCircleX := fieldline.Vec3{math.Sin(camCircleAngle), 0, -math.Cos(camCircleAngle)}
+	camCircleZ := fieldline.Vec3{-math.Sin(camCircleAngle), math.Cos(camCircleAngle), 0}
+	camCircleX := fieldline.Vec3{0, 0, 1}
 	camCircleY := camCircleZ.Cross(camCircleX)
 
 	trajs := generateTraj(positives[0], fieldline.Vec3{1, 1, 1}, fieldline.Vec3{0, -1, -1})
@@ -108,13 +108,15 @@ func main() {
 		theta := dtheta * float64(f)
 		camPos := camCircleX.Scale(math.Cos(theta))
 		camPos = camPos.Add(camCircleY.Scale(math.Sin(theta)))
+		camRight := camCircleX.Scale(-math.Sin(theta))
+		camRight = camRight.Add(camCircleY.Scale(math.Cos(theta)))
 		opts := fieldline.Options{
 			OutputFile:  fmt.Sprintf("%v-%03d.png", *output, f),
 			Width:       *width,
 			Height:      *height,
 			Step:        *step,
 			TangentAt:   tangentAt,
-			Camera:      fieldline.NewCamera(camPos, fieldline.Vec3{1, 0, 0}),
+			Camera:      fieldline.NewCamera(camPos, camRight),
 			LineWidth:   1.5,
 			FadingGamma: .25,
 		}

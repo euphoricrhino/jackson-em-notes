@@ -20,7 +20,7 @@ var (
 func main() {
 	flag.Parse()
 	e := 1.0
-	l := 1.4
+	l := 1.2
 	a := .5
 	b := 3.0 * e / (l + 2.0)
 	c := (l - 1.0) / (l + 2.0) * e
@@ -33,7 +33,7 @@ func main() {
 		r := math.Sqrt(x*x + y*y + z*z)
 		r5 := math.Pow(r, 5)
 		return fieldline.Vec3{
-			e - c*(math.Pow(r, 3.0)-3*x*x/r5),
+			e - c*(math.Pow(r, -3.0)-3*x*x/r5),
 			c * 3.0 * x * y / r5,
 			c * 3.0 * x * z / r5,
 		}
@@ -75,8 +75,8 @@ func main() {
 	}
 
 	camCircleAngle := math.Pi * .17
-	camCircleZ := fieldline.Vec3{math.Cos(camCircleAngle), 0, math.Sin(camCircleAngle)}
-	camCircleX := fieldline.Vec3{math.Sin(camCircleAngle), 0, -math.Cos(camCircleAngle)}
+	camCircleZ := fieldline.Vec3{-math.Sin(camCircleAngle), math.Cos(camCircleAngle), 0}
+	camCircleX := fieldline.Vec3{0, 0, 1}
 	camCircleY := camCircleZ.Cross(camCircleX)
 
 	frames := 180
@@ -85,15 +85,17 @@ func main() {
 		camtheta := dcamtheta * float64(f)
 		camPos := camCircleX.Scale(math.Cos(camtheta))
 		camPos = camPos.Add(camCircleY.Scale(math.Sin(camtheta)))
+		camRight := camCircleX.Scale(-math.Sin(camtheta))
+		camRight = camRight.Add(camCircleY.Scale(math.Cos(camtheta)))
 		opts := fieldline.Options{
 			OutputFile:  fmt.Sprintf("%v-%03d.png", *output, f),
 			Width:       *width,
 			Height:      *height,
 			Step:        *step,
 			TangentAt:   tangentAt,
-			Camera:      fieldline.NewCamera(camPos, fieldline.Vec3{1, 0, 0}),
+			Camera:      fieldline.NewCamera(camPos, camRight),
 			LineWidth:   1.5,
-			FadingGamma: .7,
+			FadingGamma: 1.2,
 		}
 		fieldline.Run(opts, trajs)
 		fmt.Println(opts.OutputFile)
