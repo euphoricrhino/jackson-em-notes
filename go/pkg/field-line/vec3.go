@@ -37,6 +37,8 @@ func (v Vec3) Cross(u Vec3) Vec3 {
 	}
 }
 
+func (v Vec3) Norm() float64 { return math.Sqrt(v.Dot(v)) }
+
 func (v Vec3) Normalize() Vec3 {
-	return v.Scale(1.0 / math.Sqrt(v.Dot(v)))
+	return v.Scale(1.0 / v.Norm())
 }

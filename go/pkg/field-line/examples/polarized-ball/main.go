@@ -52,7 +52,6 @@ func main() {
 		return false
 	}
 	rand.Seed(time.Now().UnixNano())
-	var trajs []fieldline.Trajectory
 	samples := 60
 	r := a / 2.0
 	dtheta := math.Pi * 2.0 / float64(samples)
@@ -63,17 +62,11 @@ func main() {
 		{startx, -a, 0},
 		{startx, 0, -a},
 	}
-	for _, ctr := range centers {
-		for i := 0; i < samples; i++ {
-			theta := dtheta * float64(i)
-			trajs = append(trajs, fieldline.Trajectory{
-				Start: ctr.Add(fieldline.Vec3{0, r * math.Sin(theta), r * math.Cos(theta)}),
-				AtEnd: atEnd,
-				Color: fieldline.RandColor(),
-			})
-		}
-	}
 
+	colors := make([][3]float64, len(centers)*samples)
+	for i := range colors {
+		colors[i] = fieldline.RandColor()
+	}
 	camCircleAngle := math.Pi * .17
 	camCircleZ := fieldline.Vec3{-math.Sin(camCircleAngle), math.Cos(camCircleAngle), 0}
 	camCircleX := fieldline.Vec3{0, 0, 1}
@@ -97,6 +90,18 @@ func main() {
 			LineWidth:   1.5,
 			FadingGamma: 1.2,
 		}
+		var trajs []fieldline.Trajectory
+		for i, ctr := range centers {
+			for j := 0; j < samples; j++ {
+				theta := dtheta * float64(j)
+				trajs = append(trajs, fieldline.Trajectory{
+					Start: ctr.Add(fieldline.Vec3{0, r * math.Sin(theta), r * math.Cos(theta)}),
+					AtEnd: atEnd,
+					Color: colors[i*samples+j],
+				})
+			}
+		}
+
 		fieldline.Run(opts, trajs)
 		fmt.Println(opts.OutputFile)
 	}

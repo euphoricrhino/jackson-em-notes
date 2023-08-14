@@ -19,12 +19,31 @@ type orbitPoint struct {
 	pixel
 }
 
-type Trajectory struct {
-	Start Vec3
-	AtEnd func(p, v Vec3) bool
-	Color [3]float64
+type Symmetry struct {
+	transform  func(p Vec3) Vec3
+	color      [3]float64
+	outOfBound bool
+}
 
-	points []orbitPoint
+func newSymmetry(transform func(Vec3) Vec3, color [3]float64) *Symmetry {
+	return &Symmetry{
+		transform: transform,
+		color:     color,
+	}
+}
+
+type Trajectory struct {
+	Start      Vec3
+	AtEnd      func(p, v Vec3) bool
+	Color      [3]float64
+	symmetries []*Symmetry
+
+	// One per symmetry.
+	points [][]orbitPoint
+}
+
+func (traj *Trajectory) AddSymmetry(transform func(Vec3) Vec3, color [3]float64) {
+	traj.symmetries = append(traj.symmetries, newSymmetry(transform, color))
 }
 
 type Camera struct {
@@ -72,9 +91,11 @@ type Options struct {
 	*Camera
 }
 
+// Runs the field line renderer given the options and trajectory settings. Upon completion
+// trajs internal data structure would have been modified.
 func Run(opts Options, trajs []Trajectory) {
 	if opts.Camera == nil {
-		opts.Camera = NewCamera(Vec3{0, 0, 2}, Vec3{1, 0, 0})
+		opts.Camera = NewCamera(Vec3{0, 0, 1}, Vec3{1, 0, 0})
 	}
 	var wg sync.WaitGroup
 	wg.Add(len(trajs))
@@ -84,29 +105,47 @@ func Run(opts Options, trajs []Trajectory) {
 	h3 := opts.Step / 3.0
 	for i := range trajs {
 		go func(traj *Trajectory) {
-			traj.points = nil
 			defer wg.Done()
+			identity := newSymmetry(func(p Vec3) Vec3 { return p }, traj.Color)
+			traj.symmetries = append([]*Symmetry{identity}, traj.symmetries...)
+			traj.points = make([][]orbitPoint, len(traj.symmetries))
 			// See multi variable Runge Kutta-4 at https://www.myphysicslab.com/explain/runge-kutta-en.html
 			x := traj.Start
 			for {
 				a := opts.TangentAt(x)
-				op := orbitPoint{
-					tangentLength: math.Sqrt(a.Dot(a)),
-					pixel:         opts.worldToScreen(x, opts.Width, opts.Height),
-				}
-				if !op.inBound(opts.Width, opts.Height) || traj.AtEnd(x, a) {
+				if traj.AtEnd(x, a) {
 					return
 				}
-				newPoint := true
-				// Include a new point only if it's beyond a pixel away.
-				if len(traj.points) > 0 {
-					last := traj.points[len(traj.points)-1]
-					if last.pixel[0] == op.pixel[0] && last.pixel[1] == op.pixel[1] {
-						newPoint = false
+				tanlen := a.Norm()
+				allOutOfBound := true
+				for j, sym := range traj.symmetries {
+					if sym.outOfBound {
+						continue
+					}
+					tx := sym.transform(x)
+					op := orbitPoint{
+						tangentLength: tanlen,
+						pixel:         opts.worldToScreen(tx, opts.Width, opts.Height),
+					}
+					if !op.inBound(opts.Width, opts.Height) {
+						sym.outOfBound = true
+						continue
+					}
+					allOutOfBound = false
+					newPixel := true
+					// Include a new point only if it's beyond a pixel away.
+					if len(traj.points[j]) > 0 {
+						last := traj.points[j][len(traj.points[j])-1]
+						if last.pixel[0] == op.pixel[0] && last.pixel[1] == op.pixel[1] {
+							newPixel = false
+						}
+					}
+					if newPixel {
+						traj.points[j] = append(traj.points[j], op)
 					}
 				}
-				if newPoint {
-					traj.points = append(traj.points, op)
+				if allOutOfBound {
+					return
 				}
 
 				xb := x.Add(a.Scale(h2))
@@ -129,11 +168,13 @@ func Run(opts Options, trajs []Trajectory) {
 	max, min := -1.0, -1.0
 	for _, traj := range trajs {
 		for i := range traj.points {
-			if max < 0 || max < traj.points[i].tangentLength {
-				max = traj.points[i].tangentLength
-			}
-			if min < 0 || min > traj.points[i].tangentLength {
-				min = traj.points[i].tangentLength
+			for j := range traj.points[i] {
+				if max < 0 || max < traj.points[i][j].tangentLength {
+					max = traj.points[i][j].tangentLength
+				}
+				if min < 0 || min > traj.points[i][j].tangentLength {
+					min = traj.points[i][j].tangentLength
+				}
 			}
 		}
 	}
@@ -144,21 +185,20 @@ func Run(opts Options, trajs []Trajectory) {
 
 	dc.SetLineWidth(opts.LineWidth)
 	for _, traj := range trajs {
-		if len(traj.points) == 0 {
-			continue
-		}
-		for i := 0; i < len(traj.points)-1; i++ {
-			// Determine the alpha of this segment based on the ratio of average tangent length to the max tangent length.
-			avg := (traj.points[i].tangentLength + traj.points[i+1].tangentLength) / 2.0
-			alpha := math.Pow((avg-min)/(max-min), opts.FadingGamma)
-			dc.SetRGBA(traj.Color[0], traj.Color[1], traj.Color[2], alpha)
-			dc.DrawLine(
-				float64(traj.points[i].pixel[0]),
-				float64(traj.points[i].pixel[1]),
-				float64(traj.points[i+1].pixel[0]),
-				float64(traj.points[i+1].pixel[1]),
-			)
-			dc.Stroke()
+		for i, pi := range traj.points {
+			for j := 0; j < len(pi)-1; j++ {
+				// Determine the alpha of this segment based on the ratio of average tangent length to the max tangent length.
+				avg := (pi[j].tangentLength + pi[j+1].tangentLength) / 2.0
+				alpha := math.Pow((avg-min)/(max-min), opts.FadingGamma)
+				dc.SetRGBA(traj.symmetries[i].color[0], traj.symmetries[i].color[1], traj.symmetries[i].color[2], alpha)
+				dc.DrawLine(
+					float64(pi[j].pixel[0]),
+					float64(pi[j].pixel[1]),
+					float64(pi[j+1].pixel[0]),
+					float64(pi[j+1].pixel[1]),
+				)
+				dc.Stroke()
+			}
 		}
 	}
 	if err := dc.SavePNG(opts.OutputFile); err != nil {

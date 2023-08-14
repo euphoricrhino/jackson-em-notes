@@ -64,7 +64,13 @@ func main() {
 		return false
 	}
 
+	thetaDeg := []float64{30.0, 60.0, 90.0, 120.0, 150.0}
+	phiDeg := []float64{0.0, 60.0, 120.0, 180.0, 240.0, 300.0}
+	colors := make([][3]float64, 2+len(thetaDeg)*len(phiDeg))
 	rand.Seed(time.Now().UnixNano())
+	for i := range colors {
+		colors[i] = fieldline.RandColor()
+	}
 	generateTraj := func(charge, localz, localx fieldline.Vec3) []fieldline.Trajectory {
 		lz := localz.Normalize()
 		xonz := lz.Scale(localx.Dot(lz))
@@ -76,20 +82,17 @@ func main() {
 		lz = lz.Scale(sr)
 		// North and south poles.
 		ret := []fieldline.Trajectory{
-			{Start: charge.Add(lz), AtEnd: atEnd},
-			{Start: charge.Subtract(lz), AtEnd: atEnd},
+			{Start: charge.Add(lz), AtEnd: atEnd, Color: colors[0]},
+			{Start: charge.Subtract(lz), AtEnd: atEnd, Color: colors[1]},
 		}
-		thetaDeg := []float64{30.0, 60.0, 90.0, 120.0, 150.0}
-		phiDeg := []float64{0.0, 60.0, 120.0, 180.0, 240.0, 300.0}
-		for _, theta := range thetaDeg {
+		for i, theta := range thetaDeg {
 			thetaRad := theta * math.Pi / 180.0
-			for _, phi := range phiDeg {
+			for j, phi := range phiDeg {
 				phiRad := phi * math.Pi / 180.0
 				disp := lx.Scale(math.Sin(thetaRad) * math.Cos(phiRad))
 				disp = disp.Add(ly.Scale(math.Sin(thetaRad) * math.Sin(phiRad)))
 				disp = disp.Add(lz.Scale(math.Cos(thetaRad)))
-				color := fieldline.RandColor()
-				ret = append(ret, fieldline.Trajectory{Start: charge.Add(disp), AtEnd: atEnd, Color: color})
+				ret = append(ret, fieldline.Trajectory{Start: charge.Add(disp), AtEnd: atEnd, Color: colors[2+i*len(phiDeg)+j]})
 			}
 		}
 		return ret
@@ -100,8 +103,6 @@ func main() {
 	camCircleX := fieldline.Vec3{0, 0, 1}
 	camCircleY := camCircleZ.Cross(camCircleX)
 
-	trajs := generateTraj(positives[0], fieldline.Vec3{1, 1, 1}, fieldline.Vec3{0, -1, -1})
-	trajs = append(trajs, generateTraj(positives[1], fieldline.Vec3{-1, 1, -1}, fieldline.Vec3{1, -1, 0})...)
 	frames := 180
 	dtheta := math.Pi * 2.0 / float64(frames)
 	for f := 0; f < frames; f++ {
@@ -121,6 +122,8 @@ func main() {
 			FadingGamma: .25,
 		}
 
+		trajs := generateTraj(positives[0], fieldline.Vec3{1, 1, 1}, fieldline.Vec3{0, -1, -1})
+		trajs = append(trajs, generateTraj(positives[1], fieldline.Vec3{-1, 1, -1}, fieldline.Vec3{1, -1, 0})...)
 		fieldline.Run(opts, trajs)
 		fmt.Println(opts.OutputFile)
 	}
