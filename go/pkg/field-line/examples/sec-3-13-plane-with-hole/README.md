@@ -1,4 +1,4 @@
-# Field line rendering for the field of Jackson problem 4-8.
+# Field line rendering for the field of Conducting plane with hole in section 3.13
 ## Example - how to run
 ```
 go run main.go --output /tmp/hole.png --step=0.001
