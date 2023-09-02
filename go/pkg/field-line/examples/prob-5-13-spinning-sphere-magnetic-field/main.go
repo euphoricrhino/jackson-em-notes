@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -46,42 +47,95 @@ func main() {
 	makeAtEnd := func(start fieldline.Vec3) func(p, v fieldline.Vec3) bool {
 		// We end the tracing when the field line curved back to the z=0 plane.
 		return func(p, v fieldline.Vec3) bool {
-			return v[1] < 0 && p[1] < 1e-3
+			return v[1] < 0 && p[1] < 1e-3 || v.Norm() < 1e-4
 		}
 	}
 
-	opts := fieldline.Options{
-		OutputFile:  *output,
-		Width:       *width,
-		Height:      *height,
-		Step:        *step,
-		TangentAt:   tangentAt,
-		LineWidth:   1.0,
-		FadingGamma: 0.5,
+	thetas := []float64{0, 15, 30, 45, 60, 75}
+	phis := []float64{45, 90, 135, 180, 225, 270, 315}
+	colors := make([][3]float64, 1+(len(thetas)-1)*len(phis))
+	for c := range colors {
+		colors[c] = fieldline.RandColor()
 	}
-
 	rand.Seed(time.Now().UnixNano())
-	var trajs []fieldline.Trajectory
-	samples := 21
-	for i := 1; i < samples-1; i++ {
-		theta := math.Pi * float64(i) / float64(samples-1)
-		start := fieldline.Vec3{a * math.Cos(theta), 0.0, 0.0}
-		color := fieldline.RandColor()
-		traj := fieldline.Trajectory{
-			Start: start,
-			AtEnd: makeAtEnd(start),
-			Color: color,
+	c := 0
+	makeTrajs := func() []fieldline.Trajectory {
+		var trajs []fieldline.Trajectory
+		for i, thetaDeg := range thetas {
+			theta := thetaDeg * math.Pi / 180.0
+			start := fieldline.Vec3{a * math.Sin(theta), 0, 0.0}
+			traj := fieldline.Trajectory{
+				Start: start,
+				AtEnd: makeAtEnd(start),
+				Color: colors[c],
+			}
+			// Lower half is reflected using symmetry.
+			traj.AddSymmetry(
+				func(v fieldline.Vec3) fieldline.Vec3 {
+					v[1] = -v[1]
+					return v
+				},
+				colors[c],
+			)
+			if i != 0 {
+				for j, phiDeg := range phis {
+					phi := phiDeg * math.Pi / 180.0
+					color := colors[1+(i-1)*len(phis)+j]
+					traj.AddSymmetry(
+						func(v fieldline.Vec3) fieldline.Vec3 {
+							rho := v[0]
+							return fieldline.Vec3{
+								rho * math.Cos(phi),
+								v[1],
+								rho * math.Sin(phi),
+							}
+						},
+						color,
+					)
+					traj.AddSymmetry(
+						func(v fieldline.Vec3) fieldline.Vec3 {
+							rho := v[0]
+							return fieldline.Vec3{
+								rho * math.Cos(phi),
+								-v[1],
+								rho * math.Sin(phi),
+							}
+						},
+						color,
+					)
+				}
+			}
+			trajs = append(trajs, traj)
 		}
-		// Lower half is reflected using symmetry.
-		traj.AddSymmetry(
-			func(v fieldline.Vec3) fieldline.Vec3 {
-				v[1] = -v[1]
-				return v
-			},
-			color,
-		)
-		trajs = append(trajs, traj)
+		return trajs
 	}
 
-	fieldline.Run(opts, trajs)
+	camCircleAngle := math.Pi * .17
+	camCircleZ := fieldline.Vec3{-math.Sin(camCircleAngle), math.Cos(camCircleAngle), 0}
+	camCircleX := fieldline.Vec3{0, 0, 1}
+	camCircleY := camCircleZ.Cross(camCircleX)
+
+	frames := 180
+	dtheta := math.Pi * 2.0 / float64(frames)
+	for f := 0; f < frames; f++ {
+		theta := dtheta * float64(f)
+		camPos := camCircleX.Scale(math.Cos(theta))
+		camPos = camPos.Add(camCircleY.Scale(math.Sin(theta)))
+		camRight := camCircleX.Scale(-math.Sin(theta))
+		camRight = camRight.Add(camCircleY.Scale(math.Cos(theta)))
+		opts := fieldline.Options{
+			OutputFile:  fmt.Sprintf("%v-%03d.png", *output, f),
+			Width:       *width,
+			Height:      *height,
+			Step:        *step,
+			TangentAt:   tangentAt,
+			Camera:      fieldline.NewCamera(camPos, camRight),
+			LineWidth:   1.0,
+			FadingGamma: .5,
+		}
+
+		trajs := makeTrajs()
+		fieldline.Run(opts, trajs)
+		fmt.Println(opts.OutputFile)
+	}
 }
