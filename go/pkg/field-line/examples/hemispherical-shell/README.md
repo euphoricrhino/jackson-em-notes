@@ -6,4 +6,5 @@ go run main.go --output /tmp/hemi.png --step=0.0001
 
 This will generate the output png image, e.g.,
 
-![point-charge](https://github.com/euphoricrhino/jackson-em-notes/assets/107862003/784a51e7-0ab9-4bae-9a3b-4d116c0a5192)
+![hemi](https://github.com/euphoricrhino/jackson-em-notes/assets/107862003/8bc21412-46e7-49bd-bdd7-437304b4a5bd)
+
