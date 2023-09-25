@@ -21,6 +21,8 @@ func main() {
 	const h0 = 1
 	const hh = h0 * 2 * a / math.Pi
 
+	// See https://github.com/euphoricrhino/jackson-em-notes/blob/main/pdf/ch-5/pp203-circular-hole-conducting-plane-magnetic.pdf
+	// for the formulas.
 	tangentAt := func(p fieldline.Vec3) fieldline.Vec3 {
 		y, z, x := p[0], p[1], p[2]
 		rho := math.Sqrt(x*x + y*y)
