@@ -2,10 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"math"
-	"math/rand"
-	"time"
 
 	fieldline "github.com/euphoricrhino/jackson-em-notes/go/pkg/field-line"
 )
@@ -51,7 +48,6 @@ func main() {
 	atEnd := func(p, v fieldline.Vec3) bool {
 		return false
 	}
-	rand.Seed(time.Now().UnixNano())
 	samples := 60
 	r := a / 2.0
 	dtheta := math.Pi * 2.0 / float64(samples)
@@ -63,46 +59,27 @@ func main() {
 		{startx, 0, -a},
 	}
 
-	colors := make([][3]float64, len(centers)*samples)
-	for i := range colors {
-		colors[i] = fieldline.RandColor()
+	opts := fieldline.Options{
+		OutputFile:  *output,
+		Width:       *width,
+		Height:      *height,
+		Step:        *step,
+		TangentAt:   tangentAt,
+		LineWidth:   1.5,
+		FadingGamma: 1.2,
+		CameraOrbit: fieldline.NewCameraOrbit(30, 180),
 	}
-	camCircleAngle := math.Pi * .17
-	camCircleZ := fieldline.Vec3{-math.Sin(camCircleAngle), math.Cos(camCircleAngle), 0}
-	camCircleX := fieldline.Vec3{0, 0, 1}
-	camCircleY := camCircleZ.Cross(camCircleX)
-
-	frames := 180
-	dcamtheta := math.Pi * 2.0 / float64(frames)
-	for f := 0; f < frames; f++ {
-		camtheta := dcamtheta * float64(f)
-		camPos := camCircleX.Scale(math.Cos(camtheta))
-		camPos = camPos.Add(camCircleY.Scale(math.Sin(camtheta)))
-		camRight := camCircleX.Scale(-math.Sin(camtheta))
-		camRight = camRight.Add(camCircleY.Scale(math.Cos(camtheta)))
-		opts := fieldline.Options{
-			OutputFile:  fmt.Sprintf("%v-%03d.png", *output, f),
-			Width:       *width,
-			Height:      *height,
-			Step:        *step,
-			TangentAt:   tangentAt,
-			Camera:      fieldline.NewCamera(camPos, camRight),
-			LineWidth:   1.5,
-			FadingGamma: 1.2,
+	var trajs []fieldline.Trajectory
+	for _, ctr := range centers {
+		for j := 0; j < samples; j++ {
+			theta := dtheta * float64(j)
+			trajs = append(trajs, fieldline.Trajectory{
+				Start: ctr.Add(fieldline.Vec3{0, r * math.Sin(theta), r * math.Cos(theta)}),
+				AtEnd: atEnd,
+				Color: fieldline.RandColor(),
+			})
 		}
-		var trajs []fieldline.Trajectory
-		for i, ctr := range centers {
-			for j := 0; j < samples; j++ {
-				theta := dtheta * float64(j)
-				trajs = append(trajs, fieldline.Trajectory{
-					Start: ctr.Add(fieldline.Vec3{0, r * math.Sin(theta), r * math.Cos(theta)}),
-					AtEnd: atEnd,
-					Color: colors[i*samples+j],
-				})
-			}
-		}
-
-		fieldline.Run(opts, trajs)
-		fmt.Println(opts.OutputFile)
 	}
+
+	fieldline.Run(opts, trajs)
 }

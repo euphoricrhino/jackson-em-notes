@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"math"
-	"math/rand"
-	"time"
 
 	fieldline "github.com/euphoricrhino/jackson-em-notes/go/pkg/field-line"
 )
@@ -65,7 +63,6 @@ func main() {
 		FadingGamma: 1,
 	}
 
-	rand.Seed(time.Now().UnixNano())
 	minrho := -.95 * a
 	maxrho := .95 * a
 	samples := 21

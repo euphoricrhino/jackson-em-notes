@@ -2,8 +2,6 @@ package main
 
 import (
 	"flag"
-	"math/rand"
-	"time"
 
 	fieldline "github.com/euphoricrhino/jackson-em-notes/go/pkg/field-line"
 )
@@ -77,7 +75,6 @@ func main() {
 		FadingGamma: 0.8,
 	}
 
-	rand.Seed(time.Now().UnixNano())
 	var trajs []fieldline.Trajectory
 	maxy, miny := 0.98, -0.98
 	startx := -0.98

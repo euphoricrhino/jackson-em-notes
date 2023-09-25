@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"math"
-	"math/rand"
-	"time"
 
 	fieldline "github.com/euphoricrhino/jackson-em-notes/go/pkg/field-line"
 )
@@ -18,7 +16,6 @@ var (
 
 func main() {
 	flag.Parse()
-	rand.Seed(time.Now().UnixNano())
 
 	a := 0.3
 	// Location of the positive and negative charges.
@@ -74,7 +71,6 @@ func main() {
 		return false
 	}
 
-	rand.Seed(time.Now().UnixNano())
 	var trajs []fieldline.Trajectory
 	samples := 30
 	for _, charge := range positives {

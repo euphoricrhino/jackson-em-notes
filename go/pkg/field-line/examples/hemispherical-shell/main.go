@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"math"
-	"math/rand"
-	"time"
 
 	fieldline "github.com/euphoricrhino/jackson-em-notes/go/pkg/field-line"
 )
@@ -120,7 +118,6 @@ func main() {
 		FadingGamma: 1,
 	}
 
-	rand.Seed(time.Now().UnixNano())
 	sr := 0.01
 	trajs := []fieldline.Trajectory{
 		{Start: fieldline.Vec3{0, a + sr, 0}, AtEnd: atEnd, Color: fieldline.RandColor()},
