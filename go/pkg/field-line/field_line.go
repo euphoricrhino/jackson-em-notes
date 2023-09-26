@@ -195,6 +195,7 @@ func Run(opts Options, trajs []Trajectory) {
 							}
 							end++
 						}
+						// end-1 because we need at least two points to draw a line.
 						for p := start; p < end-1; p++ {
 							// Determine the alpha of this segment based on the ratio of average tangent length to the max tangent length.
 							avg := (points[p].tangentLength + points[p+1].tangentLength) / 2.0
