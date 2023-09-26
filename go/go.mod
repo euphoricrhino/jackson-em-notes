@@ -3,7 +3,6 @@ module github.com/euphoricrhino/jackson-em-notes/go
 go 1.20
 
 require (
-	github.com/crazy3lf/colorconv v1.2.0
 	github.com/fogleman/gg v1.3.0
 	gonum.org/v1/gonum v0.13.0
 )
