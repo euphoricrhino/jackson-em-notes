@@ -1,7 +1,0 @@
-[user]
-	name = euphoricrhino
-	email = xinlaini@gmail.com
-[core]
-    sshCommand = "ssh -i ~/.ssh/id_rsa"
-[pull]
-	rebase = false
