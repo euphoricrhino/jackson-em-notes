@@ -1,0 +1,89 @@
+% run
+% pdflatex em.tex
+% asy em-1.asy
+% pdflatex em.tex
+% to get the output pdf file, then open it with acrobat reader to view animation.
+\documentclass{article}
+\usepackage[inline]{asymptote}
+%\usepackage{asymptote}
+\usepackage{animate}
+\begin{document}
+ 
+\begin{center} 
+\begin{asy}
+settings.render = 0;
+import three;
+import animate;
+
+animation anime = animation("em-wave");
+
+currentprojection = perspective((.3,0.4,-.5), up=X);
+real lambda = 6;
+real D = 10;
+real DE = 12;
+real zstop = 100;
+int zsamples = 120;
+real zstep = DE / zsamples;
+real k = 2 * pi / lambda;
+
+real ea = .72;
+real eb = .24;
+real phi = radians(35);
+
+int frames = 30;
+int tailNodes = 18;
+
+triple[] ende = new triple[];
+triple[] endb = new triple[];
+for (int f = 0; f < frames; ++f) {
+  real omegat = f * 2 * pi / frames;
+  triple epos = (ea * cos(k * DE - omegat + phi), eb * sin(k * DE - omegat), DE);
+  ende.push(epos);
+  triple bpos = (.6*epos.y, -.6*epos.x, DE);
+  endb.push(bpos);
+}
+
+for (int f = 0; f < frames; ++f) {
+  real omegat = f * 2 * pi / frames;
+  picture pic;
+  size(pic, 8cm, 8cm);
+  unitsize(pic, 2cm);
+  draw(pic, O--2X, mediumgray, arrow=Arrow3(emissive(mediumgray))); //x-axis
+  draw(pic, O--2Y, mediumgray, arrow=Arrow3(emissive(mediumgray))); //y-axis
+  draw(pic, O--15Z, mediumgray, arrow=Arrow3(emissive(mediumgray))); //z-axis
+  path3 ge, gb;
+  for (int i = 0; i <= zsamples; ++i) {
+    real z = i * zstep;
+    triple epos = (ea * cos(k * z - omegat + phi), eb * sin(k * z - omegat), z);
+    triple bpos = (.6*epos.y, -.6*epos.x, z);
+    ge = ge -- epos;
+    gb = gb -- bpos;
+    if (i <= zstop) {
+      draw(pic, (0, 0, z) -- (epos), red);
+      draw(pic, (0, 0, z) -- (bpos), blue);
+    }
+    if (i == zsamples) {
+      draw(pic, ge, palered+linewidth(1pt));
+      draw(pic, gb, paleblue+linewidth(1pt));
+      for (int t = 0; t <= tailNodes; ++t) {
+        real linewidth = 1-.5*t/tailNodes;
+        pen pene = rgb(1, t/tailNodes, t/tailNodes);
+        pen penb = rgb(t/tailNodes, t/tailNodes, 1);
+        draw(pic, ende[(f-t+frames)%frames] -- ende[(f-t-1+frames)%frames], pene+linewidth);
+        draw(pic, endb[(f-t+frames)%frames] -- endb[(f-t-1+frames)%frames], penb+linewidth);
+      }
+
+      draw(pic, (0, 0, z) -- (epos), red, arrow=Arrow3(DefaultHead2(normal=Z)));
+      draw(pic, (0, 0, z) -- (bpos), blue, arrow=Arrow3(DefaultHead2(normal=Z)));
+    }
+  }
+  anime.add(pic);
+}
+
+label(anime.pdf("autoplay, loop", delay=50, keep=!settings.inlinetex));
+\end{asy}
+%Uncomment the following line when not using the [inline] package option:
+%\ASYanimategraphics[autoplay,loop]{50}{movie3}{}{}
+\end{center} 
+\end{document}
+
