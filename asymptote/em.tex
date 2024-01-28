@@ -21,14 +21,14 @@ currentprojection = perspective((.3,0.4,-.5), up=X);
 real lambda = 6;
 real D = 10;
 real DE = 12;
-real zstop = 100;
+real zstart = 20;
 int zsamples = 120;
 real zstep = DE / zsamples;
 real k = 2 * pi / lambda;
 
-real ea = .72;
-real eb = .24;
-real phi = radians(35);
+real ea = 1.2;
+real eb = .4;
+real phi = radians(-35);
 
 int frames = 30;
 int tailNodes = 18;
@@ -37,9 +37,9 @@ triple[] ende = new triple[];
 triple[] endb = new triple[];
 for (int f = 0; f < frames; ++f) {
   real omegat = f * 2 * pi / frames;
-  triple epos = (ea * cos(k * DE - omegat + phi), eb * sin(k * DE - omegat), DE);
+  triple epos = (ea * cos(-omegat + phi), eb * sin(-omegat), 0);
   ende.push(epos);
-  triple bpos = (.6*epos.y, -.6*epos.x, DE);
+  triple bpos = (-.6*epos.y, .6*epos.x, 0);
   endb.push(bpos);
 }
 
@@ -55,16 +55,14 @@ for (int f = 0; f < frames; ++f) {
   for (int i = 0; i <= zsamples; ++i) {
     real z = i * zstep;
     triple epos = (ea * cos(k * z - omegat + phi), eb * sin(k * z - omegat), z);
-    triple bpos = (.6*epos.y, -.6*epos.x, z);
+    triple bpos = (-.6*epos.y, .6*epos.x, z);
     ge = ge -- epos;
     gb = gb -- bpos;
-    if (i <= zstop) {
+    if (i >= zstart) {
       draw(pic, (0, 0, z) -- (epos), red);
       draw(pic, (0, 0, z) -- (bpos), blue);
     }
-    if (i == zsamples) {
-      draw(pic, ge, palered+linewidth(1pt));
-      draw(pic, gb, paleblue+linewidth(1pt));
+    if (i == 0) {
       for (int t = 0; t <= tailNodes; ++t) {
         real linewidth = 1-.5*t/tailNodes;
         pen pene = rgb(1, t/tailNodes, t/tailNodes);
@@ -77,6 +75,9 @@ for (int f = 0; f < frames; ++f) {
       draw(pic, (0, 0, z) -- (bpos), blue, arrow=Arrow3(DefaultHead2(normal=Z)));
     }
   }
+
+  draw(pic, ge, palered+linewidth(1pt));
+  draw(pic, gb, paleblue+linewidth(1pt));
   anime.add(pic);
 }
 
