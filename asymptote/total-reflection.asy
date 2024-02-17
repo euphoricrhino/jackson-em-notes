@@ -1,20 +1,6 @@
-% run
-% pdflatex total-reflection.tex
-% asy total-reflection-1.asy
-% pdflatex total-reflection.tex
-% to get the output pdf file, then open it with acrobat reader to view animation.
-\documentclass{article}
-\usepackage[charter]{mathdesign}
-\usepackage[inline]{asymptote}
-\begin{document}
- 
-\begin{center} 
-\begin{asy}
+settings.outformat = "pdf";
 settings.render = 0;
 import three;
-import animate;
-
-animation anime = animation("total-reflection");
 
 currentprojection = perspective((-.5,-.4,.3), up=Z);
 
@@ -45,7 +31,6 @@ for (int f = 0; f < frames; ++f) {
   endb.push(bpos);
 }
 
-int frames = 30;
 for (int f = 0; f < frames; ++f) {
   real omegat = f * 2 * pi / frames;
   picture pic;
@@ -83,16 +68,10 @@ for (int f = 0; f < frames; ++f) {
   }
   draw(pic, ge, palered+linewidth(1pt));
   draw(pic, gb, paleblue+linewidth(1pt));
+  draw(pic, box((0,-2,-2), (15.5,3.5,2.5)), opacity(0));
   label(pic, "$x$", (15.6, 0, 0));
   label(pic, "$y$", (0, 2.3, 0));
   label(pic, "$z$", (0, 0, 2.3));
-  anime.add(pic);
+
+  shipout(format("frame-%02d", f), scale(4)*pic);
 }
-
-label(anime.pdf("autoplay, loop", delay=50, keep=!settings.inlinetex));
-\end{asy}
-%Uncomment the following line when not using the [inline] package option:
-%\ASYanimategraphics[autoplay,loop]{50}{movie3}{}{}
-\end{center} 
-\end{document}
-
