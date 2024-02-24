@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"math"
 	"os"
@@ -25,6 +26,8 @@ type Options struct {
 	Height int
 	// Field function for pixel (x,y) ranging from 0 to (Width|Height)-1. Return math.NaN to indicate divergence.
 	Field func(x, y int) float64
+	// Function to edit the generated image after all the field pixels have rendered.
+	PostEdit func(img draw.Image)
 }
 
 // Run runs the field renderer with the given options.
@@ -122,6 +125,9 @@ func Run(opts Options) error {
 			r, g, b, a := hm[pos].RGBA()
 			img.SetRGBA64(x, y, color.RGBA64{R: uint16(r), G: uint16(g), B: uint16(b), A: uint16(a)})
 		}
+	}
+	if opts.PostEdit != nil {
+		opts.PostEdit(img)
 	}
 	out, err := os.Create(opts.OutputFile)
 	if err != nil {
