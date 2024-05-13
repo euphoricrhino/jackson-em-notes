@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -35,10 +36,10 @@ var (
 	hotHeatmap   = flag.String("hot-heatmap", "../heatmaps/hot.png", "hot heatmap")
 	coldHeatmap  = flag.String("cold-heatmap", "../heatmaps/cold.png", "cold heatmap")
 
-	orbitPeriods    = flag.Int("orbit-periods", 24, "one camera orbit in wave periods")
+	orbitPeriods    = flag.Int("orbit-periods", 24, "one rotation orbit in wave periods")
 	framesPerPeriod = flag.Int("frames-per-period", 30, "frames per period")
 
-	maxAmp     = flag.Float64("max-amp", .3, "maximum amplitude of field vectors")
+	maxAmp     = flag.Float64("max-amp", .5, "maximum amplitude of field vectors")
 	rhoSamples = flag.Int("rho-samples", 50, "samples in radial direction")
 	phiSamples = flag.Int("phi-samples", 120, "samples in angular direction")
 	zSamples   = flag.Int("z-samples", 50, "samples in longitudinal direction")
@@ -54,25 +55,26 @@ const (
 	radius       = 2.0
 	d            = 7.0
 	initRotation = -math.Pi * 7.0 / 180.0
-	axisTheta    = math.Pi * 17.0 / 180.0
-	tmMode       = "TM"
-	teMode       = "TE"
+	// Rotation axis, which is in the x-y plane, forming this angle with the x-axis.
+	axisTheta = math.Pi * 17.0 / 180.0
+	tmMode    = "TM"
+	teMode    = "TE"
 )
 
-type Vec [3]float64
+type vec [3]float64
 
 func main() {
 	flag.Parse()
 
 	gridCnt := *zSamples * ((*phiSamples)*(*rhoSamples-1) + 1)
 
-	grids := make([]Vec, gridCnt)
+	grids := make([]vec, gridCnt)
 	dz := d / float64(*zSamples-1)
 	dphi := 2.0 * math.Pi / float64(*phiSamples)
 	drho := radius / float64(*rhoSamples-1)
 
-	efields := make([]Vec, gridCnt*(*framesPerPeriod))
-	hfields := make([]Vec, gridCnt*(*framesPerPeriod))
+	efields := make([]vec, gridCnt*(*framesPerPeriod))
+	hfields := make([]vec, gridCnt*(*framesPerPeriod))
 	idx := 0
 	// First record the polar coordinates into grids [rho,phi,z].
 	for nz := 0; nz < *zSamples; nz++ {
@@ -93,6 +95,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(*framesPerPeriod)
 
+	// For each frame, get its max-E and max-H separately for concurrency safety.
 	maxes := make([]float64, *framesPerPeriod)
 	maxhs := make([]float64, *framesPerPeriod)
 	for f := 0; f < *framesPerPeriod; f++ {
@@ -131,7 +134,7 @@ func main() {
 		hfields[i][2] *= hscale
 	}
 
-	// Convert grids to cartesian.
+	// Convert grids to cartesian, and shift the cylinder to center at origin.
 	for i := range grids {
 		rho, phi := grids[i][0], grids[i][1]
 		grids[i][0], grids[i][1] = rho*math.Cos(phi), rho*math.Sin(phi)
@@ -156,9 +159,10 @@ func main() {
 	for w := 0; w < workers; w++ {
 		go func(wk int) {
 			// Rotated grid and field vectors.
-			rg := make([]Vec, gridCnt)
-			re := make([]Vec, gridCnt)
-			rh := make([]Vec, gridCnt)
+			rg := make([]vec, gridCnt)
+			re := make([]vec, gridCnt)
+			rh := make([]vec, gridCnt)
+			// Only work on frame managed by this worker shard.
 			for f := 0; f < frameCnt; f++ {
 				if f%workers != wk {
 					continue
@@ -166,10 +170,13 @@ func main() {
 
 				rot := initRotation + float64(f)*drot
 				srot, crot := math.Sin(rot), math.Cos(rot)
-				rotate := func(v Vec) Vec {
-					u := Vec{stheta*v[0] - ctheta*v[1], ctheta*v[0] + stheta*v[1], v[2]}
-					u = Vec{crot*u[0] - srot*u[2], u[1], srot*u[0] + crot*u[2]}
-					return Vec{stheta*u[0] + ctheta*u[1], -ctheta*u[0] + stheta*u[1], u[2]}
+				rotate := func(v vec) vec {
+					// First transform world coordinate to the frame where the rotation axis is y axis.
+					u := vec{stheta*v[0] - ctheta*v[1], ctheta*v[0] + stheta*v[1], v[2]}
+					// Then rotate around the axis (new y) for the appropriate angle.
+					u = vec{crot*u[0] - srot*u[2], u[1], srot*u[0] + crot*u[2]}
+					// Transform back to world coordinate.
+					return vec{stheta*u[0] + ctheta*u[1], -ctheta*u[0] + stheta*u[1], u[2]}
 				}
 				// Rotate the grid points.
 				for i := range rg {
@@ -192,8 +199,16 @@ func main() {
 	wg.Wait()
 }
 
+// Derivative of Jm at x.
+func besselDer(x float64) float64 {
+	if *m == 0 {
+		return -math.J1(x)
+	}
+	return (math.Jn(*m-1, x) - math.Jn(*m+1, x)) / 2
+}
+
 // Returns E,H field at (rho,phi,z,omegat)
-func field(rho, phi, z, omegat float64, e, h *Vec, maxe, maxh *float64) {
+func field(rho, phi, z, omegat float64, e, h *vec, maxe, maxh *float64) {
 	gamma := *xmn / radius
 	gr := gamma * rho
 	jm := math.Jn(*m, gr)
@@ -255,9 +270,42 @@ func toPixels(x, y float64) (float64, float64) {
 	return float64(*width/2) - x*float64(*unitInPixels), float64(*height/2) - y*float64(*unitInPixels)
 }
 
-func render(grids, rg, re, rh []Vec, ehm, hhm []color.Color, f, frameCnt int) error {
+type stroke struct {
+	color color.Color
+	pos   vec
+	vec   vec
+}
+
+// Sort by the stroke's projected intersection's depth.
+// Note this definition DOES NOT define a total ordering (imagine three strokes with cyclic occlusion relationships),
+// but this algorithm seems cheap enough and good enough if the strokes are short (true for vector field visualization).
+type sortStrokes []*stroke
+
+func (strokes sortStrokes) Len() int      { return len(strokes) }
+func (strokes sortStrokes) Swap(i, j int) { strokes[i], strokes[j] = strokes[j], strokes[i] }
+func (strokes sortStrokes) Less(i, j int) bool {
+	// Get the two stroke's intersection in x-y plane.
+	p1, v1 := strokes[i].pos, strokes[i].vec
+	p2, v2 := strokes[j].pos, strokes[j].vec
+	det := v1[0]*v2[1] - v1[1]*v2[0]
+	// If the two strokes don't intersect, simply use the grid points z as tie breaker (their renderings don't overlap).
+	if det == 0 {
+		return p1[2] > p2[2]
+	}
+	t1 := (v2[1]*(p2[0]-p1[0]) - v2[0]*(p2[1]-p1[1])) / det
+	t2 := (v1[1]*(p2[0]-p1[0]) - v1[0]*(p2[1]-p1[1])) / det
+	if t1 < 0.0 || t1 > 1.0 || t2 < 0.0 || t2 > 1.0 {
+		// Intersection is not within the stroke.
+		return p1[2] > p2[2]
+	}
+	// Which intersection's z is further away?
+	return p1[2]+t1*v1[2] > p2[2]+t2*v2[2]
+}
+
+func render(grids, rg, re, rh []vec, ehm, hhm []color.Color, f, frameCnt int) error {
+	// Create an image with black background.
 	img := image.NewRGBA(image.Rect(0, 0, *width, *height))
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{0, 0, 0, 255}}, image.Point{}, draw.Src)
+	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{0, 0, 0, 0xff}}, image.Point{}, draw.Src)
 
 	gc := draw2dimg.NewGraphicContext(img)
 	gc.SetLineWidth(1)
@@ -270,6 +318,7 @@ func render(grids, rg, re, rh []Vec, ehm, hhm []color.Color, f, frameCnt int) er
 	gc.SetFontSize(5)
 	gc.FillStringAt(*mode, 40.0, 40.0)
 
+	// Showing E field only for the first 1/3 of frames, H field only for the second 1/3, and E+H for the last.
 	text := ""
 	if f < frameCnt/3 {
 		text += "E only"
@@ -289,29 +338,32 @@ func render(grids, rg, re, rh []Vec, ehm, hhm []color.Color, f, frameCnt int) er
 	}
 	gc.FillStringAt(text, 40.0, 70.0)
 
+	strokes := make([]*stroke, 0, 2*len(rg))
 	for i := range rg {
 		// Look up the color of e,h from heatmap based on original z.
 		t := (grids[i][2] + d/2) / d
 
-		// Draw E/H line in orthographic projection.
+		// Record the strokes in preparation for z-sorting.
 		if f < frameCnt/3 || f >= frameCnt*2/3 {
 			epos := int(t * float64(len(ehm)-1))
-			r, g, b, a := ehm[epos].RGBA()
-			gc.SetStrokeColor(color.RGBA64{R: uint16(r), G: uint16(g), B: uint16(b), A: uint16(a)})
-			gc.MoveTo(toPixels(rg[i][0], rg[i][1]))
-			gc.LineTo(toPixels(rg[i][0]+re[i][0], rg[i][1]+re[i][1]))
-			gc.Stroke()
+			strokes = append(strokes, &stroke{color: ehm[epos], pos: rg[i], vec: re[i]})
 		}
 
 		if f >= frameCnt/3 {
 			hpos := int(t * float64(len(hhm)-1))
-			r, g, b, a := hhm[hpos].RGBA()
-			gc.SetStrokeColor(color.RGBA64{R: uint16(r), G: uint16(g), B: uint16(b), A: uint16(a)})
-			gc.MoveTo(toPixels(rg[i][0], rg[i][1]))
-			gc.LineTo(toPixels(rg[i][0]+rh[i][0], rg[i][1]+rh[i][1]))
-			gc.Stroke()
+			strokes = append(strokes, &stroke{color: hhm[hpos], pos: rg[i], vec: rh[i]})
 		}
 	}
+	sort.Sort(sortStrokes(strokes))
+
+	// Render from far to near.
+	for _, stroke := range strokes {
+		gc.SetStrokeColor(stroke.color)
+		gc.MoveTo(toPixels(stroke.pos[0], stroke.pos[1]))
+		gc.LineTo(toPixels(stroke.pos[0]+stroke.vec[0], stroke.pos[1]+stroke.vec[1]))
+		gc.Stroke()
+	}
+
 	fn := filepath.Join(*outDir, fmt.Sprintf("frame-%04v.png", f))
 	file, err := os.Create(fn)
 	if err != nil {
@@ -323,12 +375,4 @@ func render(grids, rg, re, rh []Vec, ehm, hhm []color.Color, f, frameCnt int) er
 	}
 	fmt.Fprintf(os.Stdout, "generated %v\n", fn)
 	return nil
-}
-
-// Derivative of Jm at x.
-func besselDer(x float64) float64 {
-	if *m == 0 {
-		return -math.J1(x)
-	}
-	return (math.Jn(*m-1, x) - math.Jn(*m+1, x)) / 2
 }
