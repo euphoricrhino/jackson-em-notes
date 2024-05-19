@@ -11,14 +11,15 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/llgcode/draw2d"
 	"github.com/llgcode/draw2d/draw2dimg"
 
 	"github.com/euphoricrhino/jackson-em-notes/go/pkg/heatmap"
+	"github.com/euphoricrhino/jackson-em-notes/go/pkg/zpainter"
 )
 
 // Example commands:
@@ -141,9 +142,6 @@ func main() {
 		grids[i][2] -= d / 2
 	}
 
-	workers := runtime.NumCPU()
-	wg.Add(workers)
-
 	stheta, ctheta := math.Sin(axisTheta), math.Cos(axisTheta)
 	frameCnt := *orbitPeriods * (*framesPerPeriod)
 	drot := 2 * math.Pi / float64(frameCnt)
@@ -156,47 +154,37 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load cold heatmap: %v", err))
 	}
-	for w := 0; w < workers; w++ {
-		go func(wk int) {
-			// Rotated grid and field vectors.
-			rg := make([]vec, gridCnt)
-			re := make([]vec, gridCnt)
-			rh := make([]vec, gridCnt)
-			// Only work on frame managed by this worker shard.
-			for f := 0; f < frameCnt; f++ {
-				if f%workers != wk {
-					continue
-				}
-
-				rot := initRotation + float64(f)*drot
-				srot, crot := math.Sin(rot), math.Cos(rot)
-				rotate := func(v vec) vec {
-					// First transform world coordinate to the frame where the rotation axis is y axis.
-					u := vec{stheta*v[0] - ctheta*v[1], ctheta*v[0] + stheta*v[1], v[2]}
-					// Then rotate around the axis (new y) for the appropriate angle.
-					u = vec{crot*u[0] - srot*u[2], u[1], srot*u[0] + crot*u[2]}
-					// Transform back to world coordinate.
-					return vec{stheta*u[0] + ctheta*u[1], -ctheta*u[0] + stheta*u[1], u[2]}
-				}
-				// Rotate the grid points.
-				for i := range rg {
-					rg[i] = rotate(grids[i])
-				}
-				idxStart := (f % *framesPerPeriod) * gridCnt
-				// Rotate the field vectors.
-				ef, hf := efields[idxStart:], hfields[idxStart:]
-				for i := range grids {
-					re[i] = rotate(ef[i])
-					rh[i] = rotate(hf[i])
-				}
-				if err := render(grids, rg, re, rh, ehm, hhm, f, frameCnt); err != nil {
-					panic(err)
-				}
-			}
-			wg.Done()
-		}(w)
+	// Rotated grid and field vectors.
+	rg := make([]vec, gridCnt)
+	re := make([]vec, gridCnt)
+	rh := make([]vec, gridCnt)
+	// Only work on frame managed by this worker shard.
+	for f := 0; f < frameCnt; f++ {
+		rot := initRotation + float64(f)*drot
+		srot, crot := math.Sin(rot), math.Cos(rot)
+		rotate := func(v vec) vec {
+			// First transform world coordinate to the frame where the rotation axis is y axis.
+			u := vec{stheta*v[0] - ctheta*v[1], ctheta*v[0] + stheta*v[1], v[2]}
+			// Then rotate around the axis (new y) for the appropriate angle.
+			u = vec{crot*u[0] - srot*u[2], u[1], srot*u[0] + crot*u[2]}
+			// Transform back to world coordinate.
+			return vec{stheta*u[0] + ctheta*u[1], -ctheta*u[0] + stheta*u[1], u[2]}
+		}
+		// Rotate the grid points.
+		for i := range rg {
+			rg[i] = rotate(grids[i])
+		}
+		idxStart := (f % *framesPerPeriod) * gridCnt
+		// Rotate the field vectors.
+		ef, hf := efields[idxStart:], hfields[idxStart:]
+		for i := range grids {
+			re[i] = rotate(ef[i])
+			rh[i] = rotate(hf[i])
+		}
+		if err := render(grids, rg, re, rh, ehm, hhm, f, frameCnt); err != nil {
+			panic(err)
+		}
 	}
-	wg.Wait()
 }
 
 // Derivative of Jm at x.
@@ -270,43 +258,82 @@ func toPixels(x, y float64) (float64, float64) {
 	return float64(*width/2) - x*float64(*unitInPixels), float64(*height/2) - y*float64(*unitInPixels)
 }
 
-type stroke struct {
-	color color.Color
-	pos   vec
-	vec   vec
-}
-
-// Sort by the stroke's projected intersection's depth.
-// Note this definition DOES NOT define a total ordering (imagine three strokes with cyclic occlusion relationships),
-// but this algorithm seems cheap enough and good enough if the strokes are short (true for vector field visualization).
-type sortStrokes []*stroke
-
-func (strokes sortStrokes) Len() int      { return len(strokes) }
-func (strokes sortStrokes) Swap(i, j int) { strokes[i], strokes[j] = strokes[j], strokes[i] }
-func (strokes sortStrokes) Less(i, j int) bool {
-	// Get the two stroke's intersection in x-y plane.
-	p1, v1 := strokes[i].pos, strokes[i].vec
-	p2, v2 := strokes[j].pos, strokes[j].vec
-	det := v1[0]*v2[1] - v1[1]*v2[0]
-	// If the two strokes don't intersect, simply use the grid points z as tie breaker (their renderings don't overlap).
-	if det == 0 {
-		return p1[2] > p2[2]
-	}
-	t1 := (v2[1]*(p2[0]-p1[0]) - v2[0]*(p2[1]-p1[1])) / det
-	t2 := (v1[1]*(p2[0]-p1[0]) - v1[0]*(p2[1]-p1[1])) / det
-	if t1 < 0.0 || t1 > 1.0 || t2 < 0.0 || t2 > 1.0 {
-		// Intersection is not within the stroke.
-		return p1[2] > p2[2]
-	}
-	// Which intersection's z is further away?
-	return p1[2]+t1*v1[2] > p2[2]+t2*v2[2]
-}
-
 func render(grids, rg, re, rh []vec, ehm, hhm []color.Color, f, frameCnt int) error {
 	// Create an image with black background.
 	img := image.NewRGBA(image.Rect(0, 0, *width, *height))
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{0, 0, 0, 0xff}}, image.Point{}, draw.Src)
 
+	renderCaption(img, f, frameCnt)
+
+	workers := runtime.NumCPU()
+	var wg sync.WaitGroup
+	wg.Add(workers)
+
+	zp := zpainter.NewZPainter(img, workers)
+	start := time.Now()
+	for s := 0; s < workers; s++ {
+		go func(sh int) {
+			shard := zp.Shard(sh)
+			gc := draw2dimg.NewGraphicContextWithPainter(img, shard)
+			for i := range rg {
+				if i%workers != sh {
+					continue
+				}
+				// Look up the color of e,h from heatmap based on original z.
+				t := (grids[i][2] + d/2) / d
+
+				if f < frameCnt/3 || f >= frameCnt*2/3 {
+					epos := int(t * float64(len(ehm)-1))
+					p1x, p1y := toPixels(rg[i][0], rg[i][1])
+					p1 := [3]float64{p1x, p1y, rg[i][2]}
+					p2x, p2y := toPixels(rg[i][0]+re[i][0], rg[i][1]+re[i][1])
+					p2 := [3]float64{p2x, p2y, rg[i][2] + re[i][2]}
+					shard.SetEndpoints(p1, p2)
+					gc.SetStrokeColor(ehm[epos])
+					gc.MoveTo(p1x, p1y)
+					gc.LineTo(p2x, p2y)
+					gc.Stroke()
+				}
+
+				if f >= frameCnt/3 {
+					hpos := int(t * float64(len(hhm)-1))
+					p1x, p1y := toPixels(rg[i][0], rg[i][1])
+					p1 := [3]float64{p1x, p1y, rg[i][2]}
+					p2x, p2y := toPixels(rg[i][0]+rh[i][0], rg[i][1]+rh[i][1])
+					p2 := [3]float64{p2x, p2y, rg[i][2] + rh[i][2]}
+					shard.SetEndpoints(p1, p2)
+					gc.SetStrokeColor(hhm[hpos])
+					gc.MoveTo(p1x, p1y)
+					gc.LineTo(p2x, p2y)
+					gc.Stroke()
+				}
+			}
+			wg.Done()
+		}(s)
+	}
+	wg.Wait()
+	strokingDur := time.Since(start)
+
+	start = time.Now()
+	zp.Commit(workers)
+	commitDur := time.Since(start)
+
+	start = time.Now()
+	fn := filepath.Join(*outDir, fmt.Sprintf("frame-%04v.png", f))
+	file, err := os.Create(fn)
+	if err != nil {
+		return fmt.Errorf("failed to create output file '%v': %v", fn, err)
+	}
+	defer file.Close()
+	if err := png.Encode(file, img); err != nil {
+		return fmt.Errorf("failed to encode to PNG: %v", err)
+	}
+	saveDur := time.Since(start)
+	fmt.Fprintf(os.Stdout, "generated %v (stroking=%v, commit=%v, save=%v)\n", fn, strokingDur, commitDur, saveDur)
+	return nil
+}
+
+func renderCaption(img *image.RGBA, f, frameCnt int) {
 	gc := draw2dimg.NewGraphicContext(img)
 	gc.SetLineWidth(1)
 	draw2d.SetFontFolder("/Users/xni/Library/Fonts")
@@ -337,42 +364,4 @@ func render(grids, rg, re, rh []vec, ehm, hhm []color.Color, f, frameCnt int) er
 		text += "both E and H"
 	}
 	gc.FillStringAt(text, 40.0, 70.0)
-
-	strokes := make([]*stroke, 0, 2*len(rg))
-	for i := range rg {
-		// Look up the color of e,h from heatmap based on original z.
-		t := (grids[i][2] + d/2) / d
-
-		// Record the strokes in preparation for z-sorting.
-		if f < frameCnt/3 || f >= frameCnt*2/3 {
-			epos := int(t * float64(len(ehm)-1))
-			strokes = append(strokes, &stroke{color: ehm[epos], pos: rg[i], vec: re[i]})
-		}
-
-		if f >= frameCnt/3 {
-			hpos := int(t * float64(len(hhm)-1))
-			strokes = append(strokes, &stroke{color: hhm[hpos], pos: rg[i], vec: rh[i]})
-		}
-	}
-	sort.Sort(sortStrokes(strokes))
-
-	// Render from far to near.
-	for _, stroke := range strokes {
-		gc.SetStrokeColor(stroke.color)
-		gc.MoveTo(toPixels(stroke.pos[0], stroke.pos[1]))
-		gc.LineTo(toPixels(stroke.pos[0]+stroke.vec[0], stroke.pos[1]+stroke.vec[1]))
-		gc.Stroke()
-	}
-
-	fn := filepath.Join(*outDir, fmt.Sprintf("frame-%04v.png", f))
-	file, err := os.Create(fn)
-	if err != nil {
-		return fmt.Errorf("failed to create output file '%v': %v", fn, err)
-	}
-	defer file.Close()
-	if err := png.Encode(file, img); err != nil {
-		return fmt.Errorf("failed to encode to PNG: %v", err)
-	}
-	fmt.Fprintf(os.Stdout, "generated %v\n", fn)
-	return nil
 }
