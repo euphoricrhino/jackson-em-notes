@@ -189,10 +189,9 @@ func main() {
 		}
 
 		img := zraster.Run(zraster.Options{
-			Camera:    cir.GetCamera(f),
-			Paths:     paths,
-			NearZClip: .1,
-			Workers:   runtime.NumCPU(),
+			Camera:  cir.GetCamera(f),
+			Paths:   paths,
+			Workers: runtime.NumCPU(),
 		})
 		renderCaption(img, f, frameCnt)
 		fn := filepath.Join(*outDir, fmt.Sprintf("frame-%04v.png", f))
