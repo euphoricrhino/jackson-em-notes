@@ -33,7 +33,7 @@ function run(V, p, i, j, k)
   ldomain = [ll : step : lr];
   rdomain = [.1 : .01 : 1];
   l = arrayfun(@(x) lhs(V, p, x), ldomain);
-  r =arrayfun(@(x) rhs(V, p, x), rdomain);
+  r = arrayfun(@(x) rhs(V, p, x), rdomain);
   subplot(i, j, k)
   plot(ldomain, l, 'linewidth', 1.5);
   hold on;
