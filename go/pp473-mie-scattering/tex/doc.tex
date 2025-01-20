@@ -1,0 +1,120 @@
+\documentclass[a4paper, 10pt] {article}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage[inline]{asymptote}
+\usepackage{amsthm}
+\usepackage{ulem}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{physics}
+\usepackage{hyperref}
+%\usepackage[math]{anttor}
+%\usepackage{antpolt}
+%\usepackage[QX]{fontenc}
+%\usepackage[math]{iwona}
+%\usepackage{cmbright}
+\usepackage[charter]{mathdesign}
+\usepackage{bm}
+%\usepackage[garamond]{mathdesign}
+%\usepackage{comicsans}
+%\usepackage[varg]{txfonts}
+%\usepackage{fouriernc}
+%\usepackage{kmath,kerkis}
+%\usepackage[math]{anttor}
+%\usepackage{arev}
+%\usepackage{mathptmx}
+%\usepackage{fourier}
+%\usepackage{mathpple}
+%\usepackage{mathtime}
+%\usepackage{ccfonts,eulervm}
+%\usepackage[T1]{fontenc}
+%\usepackage[math]{kurier}
+\usepackage[cm]{fullpage}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+%\oddsidemargin 0.0in
+%\evensidemargin 0.0in
+%\textwidth 6.5in
+%\textheight 9in
+\pagestyle{empty}
+\makeatletter
+\renewcommand*\env@matrix[1][\arraystretch]{%
+  \edef\arraystretch{#1}%
+  \hskip -\arraycolsep
+  \let\@ifnextchar\new@ifnextchar
+  \array{*\c@MaxMatrixCols c}}
+\makeatother
+\hypersetup{%
+  colorlinks=true,% hyperlinks will be black
+  linkbordercolor=red,% hyperlink borders will be red
+  pdfborderstyle={/S/U/W 1}% border style will be underline of width 1pt
+}
+
+\newtheorem{lemma}{Lemma}
+
+\newcommand\str{\rule{0pt}{2.6ex}\rule[-0.9ex]{0pt}{0pt}}
+\makeatletter
+\newcommand{\vast}{\bBigg@{4}}
+\newcommand{\Vast}{\bBigg@{5}}
+\newcommand{\cphi}{\cos\phi_{0}}
+\newcommand{\sphi}{\sin\phi_{0}}
+\newcommand{\st}{\sin\theta_{0}}
+\newcommand{\ct}{\cos\theta_{0}}
+
+\makeatother
+\begin{document}
+\noindent\textsc{Mie Scattering}\hfill
+\textsc{Jackson E-M Notes by @EuphoricRhino}
+
+\noindent\rule{\textwidth}{1pt}
+\begin{align}
+  Y_{l1}\left( \theta,\phi \right)&=\sqrt{\frac{2l+1}{4\pi}\frac{1}{l\left( l+1 \right)}}P_{l}^{1}\left( \cos\theta \right)e^{i\phi}\\
+  P_{l}^{1}\left( \cos\theta \right)&=-\sin\theta \frac{d P_{l}\left( \cos\theta \right)}{d \cos\theta}=-\sin\theta P_{l}'\left( \cos\theta \right)\\
+  \mathbf{Y}_{l1}&=\sqrt{\frac{2l+1}{4\pi}\frac{1}{l\left( l+1 \right)}}\left[ -\sin\theta P_{l}'\left( \cos\theta \right) \right]e^{i\phi}\vu{\mathbf{r}}\\
+  \boldsymbol{\Psi}_{l1}&=r\boldsymbol{\nabla}Y_{l1}\left( \theta,\phi \right)=\frac{\partial Y_{l1}}{\partial \theta}\vu{\boldsymbol{\theta}}+\frac{1}{\sin\theta}\frac{\partial Y_{l1}}{\partial \phi}\vu{\boldsymbol{\phi}}\\
+  \boldsymbol{\Phi}_{l1}&=\vu{\boldsymbol{r}}\times\boldsymbol{\Psi}_{l1}=-\frac{1}{\sin\theta}\frac{\partial Y_{l1}}{\partial \phi}\vu{\boldsymbol{\theta}}+\frac{\partial Y_{l1}}{\partial \theta}\vu{\boldsymbol{\phi}}\\
+  \frac{\partial Y_{l1}}{\partial \theta}&=\sqrt{\frac{2l+1}{4\pi}\frac{1}{l\left( l+1 \right)}}\left[ -\cos\theta P_{l}'\left( \cos\theta \right)+\sin^{2}\theta P_{l}''\left( \cos\theta \right) \right]e^{i\phi}\nonumber\\
+                                         &=\sqrt{\frac{2l+1}{4\pi}\frac{1}{l\left( l+1 \right)}}\left[ \cos\theta P_{l}'\left( \cos\theta \right)-l\left( l+1 \right)P_{l}\left( \cos\theta \right) \right]e^{i\phi}\\
+  \frac{1}{\sin\theta}\frac{\partial Y_{l1}}{\partial \phi}&=\sqrt{\frac{2l+1}{4\pi}\frac{1}{l\left( l+1 \right)}}\left[-iP_{l}'\left( \cos\theta \right) \right]e^{i\phi}\\
+  \mathbf{F}&=\sum_{l=1}^{\infty}i^{l}\sqrt{4\pi\left( 2l+1 \right)}\left\{\alpha z_{l}\left( kr \right)\mathbf{X}_{l1}+\frac{\beta}{k} \boldsymbol{\nabla}\times{\left[ z_{l}\left( kr \right)\mathbf{X}_{l1} \right]}  \right\}\nonumber\\
+            &=\sum_{l=1}^{\infty}i^{l-1}\sqrt{\frac{4\pi\left( 2l+1 \right)}{l\left( l+1 \right)}}\left\{ \alpha z_{l}\left( kr \right)\boldsymbol{\Phi}_{l1}+\frac{\beta}{k} \boldsymbol{\nabla}\times\left[ z_{l}\left( kr \right)\boldsymbol{\Phi}_{l1} \right] \right\}\nonumber\\
+            &=\sum_{l=1}^{\infty}i^{l-1}\sqrt{\frac{4\pi\left( 2l+1 \right)}{l\left( l+1 \right)}}\left\{ \alpha z_{l}\left( kr \right)\boldsymbol{\Phi}_{l1}-l\left( l+1 \right)\beta\frac{z_{l}\left( kr \right)}{kr}\mathbf{Y}_{l1}-\beta\left[ z_{l}'\left( kr \right)+\frac{z_{l}\left( kr \right)}{kr} \right] \boldsymbol{\Psi}_{l1} \right\}\nonumber\\
+            &=\sum_{l=1}^{\infty}i^{l-1}\left[ \frac{2l+1}{l\left( l+1 \right)} \right]e^{i\phi}\left( R\vu{\mathbf{r}}+T\vu{\boldsymbol{\theta}}+P\vu{\boldsymbol{\phi}} \right)\\
+  R&=l\left( l+1 \right)\beta\frac{z_{l}\left( kr \right)}{kr}\sin\theta P_{l}'\left( \cos\theta \right)\\
+  T&=i\alpha z_{l}\left( kr \right)P_{l}'\left( \cos\theta \right)-\beta\left[ z_{l}'\left( kr \right)+\frac{z_{l}\left( kr \right)}{kr} \right]\left[ \cos\theta P_{l}'\left( \cos\theta \right)-l\left( l+1 \right)P_{l}\left( \cos\theta \right) \right]\\
+  P&=\alpha z_{l}\left( kr \right)\left[ \cos\theta P_{l}'\left( \cos\theta \right)-l\left( l+1 \right)P_{l}\left( \cos\theta \right) \right]+i\beta\left[ z_{l}'\left( kr \right)+\frac{z_{l}\left( kr \right)}{kr} \right]P_{l}'\left( \cos\theta \right)\\
+  \mathbf{G}&=\sum_{l=1}^{\infty}i^{l}\sqrt{4\pi\left( 2l+1 \right)}\left\{ \alpha z_{l}\left( kr \right)\mathbf{X}_{l,-1}-\frac{\beta}{k}\boldsymbol{\nabla}\times{\left[ z_{l}\left( kr \right)\mathbf{X}_{l,-1} \right]} \right\}\\
+            &=\sum_{l=1}^{\infty}-i^{l-1}\sqrt{\frac{4\pi\left( 2l+1 \right)}{l\left( l+1 \right)}}\left\{ \alpha z_{l}\left( kr \right)\boldsymbol{\Phi}_{l1}^{*}+l\left( l+1 \right)\beta \frac{z_{l}\left( kr \right)}{kr}\mathbf{Y}_{l1}^{*}+\beta\left[ z_{l}'\left( kr \right)+\frac{z_{l}\left( kr \right)}{kr} \right]\boldsymbol{\Psi}_{l1}^{*}\right\}\\
+            &=\sum_{l=1}^{\infty}-i^{l-1}\left[ \frac{2l+1}{l\left( l+1 \right)} \right]e^{-i\phi}\left( R'\vu{\mathbf{r}}+T'\vu{\boldsymbol{\theta}}+P'\vu{\boldsymbol{\phi}} \right)\\
+  R'&=-R\\
+  T'&=-i\alpha z_{l}\left( kr \right)P_{l}'\left( \cos\theta \right)+\beta\left[ z_{l}'\left( kr \right)+\frac{z_{l}\left( kr \right)}{kr} \right]\left[ \cos\theta P_{l}'\left( \cos\theta \right)-l\left( l+1 \right)P_{l}\left( \cos\theta \right) \right]\\
+  P'&=\alpha z_{l}\left( kr \right)\left[ \cos\theta P_{l}'\left( \cos\theta \right)-l\left( l+1 \right)P_{l}\left( \cos\theta \right) \right]+i\beta\left[ z_{l}'\left( kr \right)+\frac{z_{l}\left( kr \right)}{kr} \right]P_{l}'\left( \cos\theta \right)\\
+\end{align}
+\begin{align}
+  P_{0}\left( x \right)&=1 & P_{1}\left( x \right)&=x & P_{l}\left( x \right)&=\left( \frac{2l-1}{l} \right)xP_{l-1}\left( x \right)-\left( \frac{l-1}{l} \right)P_{l-2}\left( x \right)\\
+  P_{0}'\left( x \right)&=0 & P_{1}'\left( x \right)&=1 & P_{l}'\left( x \right)&=lP_{l-1}\left( x \right)+xP_{l-1}'\left( x \right)\\
+  j_{0}\left( x \right)&=\frac{\sin x}{x} & j_{1}\left( x \right)&=\frac{\sin x}{x^{2}}-\frac{\cos x}{x} & z_{l}\left( x \right)&=\left( 2l-1 \right)\frac{z_{l-1}\left( x \right)}{x}-z_{l-2}\left( x \right)\\
+  n_{0}\left( x \right)&=-\frac{\cos x}{x} & n_{1}\left( x \right)&=-\frac{\cos x}{x^{2}}-\frac{\sin x}{x} & z_{l}'\left( x \right)&=z_{l-1}\left( x \right)-\left( l+1 \right)\frac{z_{l}\left( x \right)}{x}\\
+  j_{l}'\left( 0 \right)&=\frac{j_{l}\left( x \right)}{x}\bigg|_{x=0}=
+  \begin{cases}
+    \displaystyle \frac{1}{3} & \text{for } l=1\\[10pt]
+    0 & \text{for } l>1
+  \end{cases}
+\end{align}
+\begin{align}
+  J&=j_{l}\left( ka \right) & H&=h_{l}^{\left( 1 \right)}\left( ka \right) & N&=j_{l}\left( nka \right)\\
+  J'&=kaj_{l}'\left( ka \right)+j_{l}\left( ka \right) & H'&=kah_{l}^{\left( 1 \right)\prime}\left( ka \right)+h_{l}^{\left( 1 \right)}\left( ka \right) & N'&=nkaj_{l}'\left( nka \right)+j_{l}\left( nka \right)
+\end{align}
+\begin{align}
+  \mbox{incident: } && \alpha&=1 & \beta &=1\\
+  \mbox{scattered: } && \alpha&=\frac{JN'-\mu_{r}J'N}{\mu_{r}H'N-HN'} & \beta&=\frac{n^{2}J'N-\mu_{r}JN'}{\mu_{r}HN'-n^{2}H'N}\\
+  \mbox{internal: }&& \alpha&=\frac{\mu_{r}\left( JH'-J'H \right)}{\mu_{r}H'N-HN'} & \beta&=\frac{n\mu_{r}\left( J'H-JH' \right)}{\mu_{r}HN'-n^{2}H'N} && k\to nk
+\end{align}
+\begin{align}
+  \mathbf{E}_{\text{inc}}&=\sum_{l=1}^{\infty}i^{l}\sqrt{4\pi\left( 2l+1 \right)}\left\{ j_{l}\left( kr \right)\mathbf{X}_{l1}+\frac{1}{k}\boldsymbol{\nabla}\times{\left[ j_{l}\left( kr \right)\mathbf{X}_{l1} \right]} \right\}\\
+  \mathbf{E}_{\text{sc}}&=\sum_{l=1}^{\infty}i^{l}\sqrt{4\pi\left( 2l+1 \right)}\left\{ a_{l1}h_{l}^{\left( 1 \right)}\left( kr \right)\mathbf{X}_{l1}+\frac{i}{k}b_{l1}\boldsymbol{\nabla}\times{\left[ h_{l}^{\left( 1 \right)}\left( kr \right)\mathbf{X}_{l1} \right]} \right\}\\
+  \mathbf{E}_{\text{int}}&=\sum_{l=1}^{\infty}i^{l}\sqrt{4\pi\left( 2l+1 \right)}\left\{ c_{l1}j_{l}\left( nkr \right)\mathbf{X}_{l1}+\frac{i}{nk}d_{l1}\boldsymbol{\nabla}\times{\left[ j_{l}\left( nkr \right)\mathbf{X}_{l1} \right]} \right\}
+\end{align}
+
+\end{document}
