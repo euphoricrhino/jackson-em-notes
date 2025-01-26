@@ -6,15 +6,22 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"math"
 	"os"
+
+	"github.com/llgcode/draw2d"
+	"github.com/llgcode/draw2d/draw2dimg"
 
 	"github.com/euphoricrhino/jackson-em-notes/go/pkg/heatmap"
 )
 
 var (
 	heatmapFile = flag.String("heatmap-file", "", "heatmap file")
+	n           = flag.String("n", "1.2+0.2i", "refractive index")
+	rStart      = flag.Float64("r-start", 0.25, "start radius")
+	rInc        = flag.Float64("r-inc", 0.01, "increment radius")
 	output      = flag.String("output", "", "output file")
 	dataFile    = flag.String("data-file", "", "data file")
 	count       = flag.Int("count", 1, "number of frames")
@@ -55,6 +62,23 @@ func main() {
 	}
 }
 
+func postEdit(img draw.Image, frame int) {
+	gc := draw2dimg.NewGraphicContext(img)
+	gc.SetLineWidth(1)
+
+	draw2d.SetFontFolder("/Users/xni/Library/Fonts")
+	draw2d.SetFontNamer(func(_ draw2d.FontData) string { return "MonoLisaVariableNormal.ttf" })
+
+	text := fmt.Sprintf("n=%v", *n)
+	text += fmt.Sprintf(", R=%.2fλ", *rStart+float64(frame)*(*rInc))
+	textColor := color.RGBA{0, 0xcc, 0xcc, 0xff}
+	gc.SetFillColor(textColor)
+	gc.SetStrokeColor(textColor)
+	gc.SetDPI(288)
+	gc.SetFontSize(3.5)
+	gc.FillStringAt(text, 20.0, 20.0)
+}
+
 func savePNG(data []float64, hm []color.Color, frame int) {
 	img := image.NewRGBA(image.Rect(0, 0, *width, *height))
 	for x := 0; x < *width; x++ {
@@ -69,6 +93,8 @@ func savePNG(data []float64, hm []color.Color, frame int) {
 			)
 		}
 	}
+
+	postEdit(img, frame)
 	filename := fmt.Sprintf("%v-%03v.png", *output, frame)
 	out, err := os.Create(filename)
 	if err != nil {
