@@ -29,7 +29,7 @@ const (
 	minRad = lambda * 0.25
 	maxRad = lambda * 4.005
 
-	incRad = 0.1 * lambda
+	incRad = 0.01 * lambda
 )
 
 func main() {
