@@ -16,5 +16,11 @@ ffmpeg -framerate 20.75 -i ./mie-scattered-%03d.png -c:v libx264  -profile:v hig
 
 ## Example images
 
-R=3.18λ, n=1.33
-![mie-total-293](https://github.com/user-attachments/assets/f7c4af60-bc52-4d86-b340-ef1a1fc6215e)
+
+![mie-total-293](https://github.com/user-attachments/assets/1b1abf1a-952c-489b-82df-75a0c746a005)
+
+![mie-total-132](https://github.com/user-attachments/assets/21a019c2-9187-434c-a516-824d4677574c)
+
+![mie-total-092](https://github.com/user-attachments/assets/95cd0f74-f542-4c2a-b3f7-f8e300a0c1e0)
+
+![mie-total-136](https://github.com/user-attachments/assets/a1a97f74-4a4b-4e5a-80e3-5d481388bdae)
