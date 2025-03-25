@@ -18,11 +18,7 @@ function v = add_velocity(v1, v2)
 
   denom = 1 + dot_v1v2;
 
-  if denom >= 1
-    v_par = (dot_v1v2 / v1_mag2) * v1;
-  else
-    v_par = zeros(3,1);
-  endif
+  v_par = (dot_v1v2 / v1_mag2) * v1;
 
   v_perp = v2 - v_par;
 
