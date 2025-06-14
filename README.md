@@ -1,7 +1,7 @@
 
 # Classical Electrodynamics 3rd Edition By J.D Jackson, Solutions, Notes and Visualization programs
 
-As a hobby, I started to tackle this infamous book.
+I started to tackle this infamous book, as a hobby.
 
 This repository is a collection of my effort to fill *every* missing derivation gap in the main text, write the solution for every (non-trivial) problems I can solve, and along the way, write code to render a lot of cool visualizations (animations).
 
